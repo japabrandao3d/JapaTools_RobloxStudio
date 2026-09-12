@@ -1,0 +1,924 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
+	<External>null</External>
+	<External>nil</External>
+	<Item class="Script" referent="RBX7C57F82F6E864E54A2DC1DB5682E2F76">
+		<Properties>
+			<BinaryString name="AttributesSerialize"></BinaryString>
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<bool name="Disabled">false</bool>
+			<Content name="LinkedSource"><null></null></Content>
+			<string name="Name">JapaTools_0.1.0</string>
+			<token name="RunContext">0</token>
+			<string name="ScriptGuid">{CA61B2AC-50A9-4933-828C-0FF8B6E364BB}</string>
+			<ProtectedString name="Source"><![CDATA[-- JapaTools for Roblox Studio
+-- Version 0.1.0
+-- Multi-function plugin with collapsible sections
+
+-- =====================================================
+-- INITIAL SETUP
+-- =====================================================
+
+local toolbar = plugin:CreateToolbar("JapaTools")
+local button = toolbar:CreateButton(
+	"JapaTools",
+	"Multi-function development plugin",
+	"rbxassetid://112717668264965"
+	-- "rbxasset://textures/ui/Settings/Help/AvatarCompatibilityIcon@2x.png"
+)
+
+-- Required services
+local Selection = game:GetService("Selection")
+local ChangeHistoryService = game:GetService("ChangeHistoryService")
+local TweenService = game:GetService("TweenService")
+
+-- =====================================================
+-- USER INTERFACE SETUP
+-- =====================================================
+
+-- Create widget (plugin window)
+local widgetInfo = DockWidgetPluginGuiInfo.new(
+	Enum.InitialDockState.Float,
+	false,  -- Widget starts closed
+	false,  -- Override previous saved state
+	380,    -- Increased initial width
+	600,    -- Increased initial height further
+	320,    -- Increased minimum width
+	550     -- Increased minimum height further
+)
+
+local widget = plugin:CreateDockWidgetPluginGui("JapaTools", widgetInfo)
+widget.Title = "JapaTools"
+widget.Name = "JapaTools"
+
+-- Main frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(1, 0, 1, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(46, 46, 46)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = widget
+
+-- ScrollingFrame to contain all elements
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, -10, 1, -10)
+scrollFrame.Position = UDim2.new(0, 5, 0, 5)
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 1200) -- Increased canvas size for new features
+scrollFrame.ScrollBarThickness = 6
+scrollFrame.BackgroundColor3 = Color3.fromRGB(36, 36, 36)
+scrollFrame.BorderSizePixel = 0
+scrollFrame.Parent = mainFrame
+
+-- Automatic layout
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 5)
+listLayout.Parent = scrollFrame
+
+-- =====================================================
+-- HELPER FUNCTIONS
+-- =====================================================
+
+-- Function to create labels
+local function createLabel(text, parent, color)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -10, 0, 25)
+	label.Position = UDim2.new(0, 5, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextColor3 = color or Color3.fromRGB(226, 226, 226)
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Font = Enum.Font.SourceSans
+	label.TextSize = 16
+	label.Parent = parent
+	return label
+end
+
+-- Function to create separators
+local function createSeparator(parent)
+	local separator = Instance.new("Frame")
+	separator.Size = UDim2.new(1, -10, 0, 1)
+	separator.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+	separator.BorderSizePixel = 0
+	separator.Parent = parent
+	return separator
+end
+
+-- Function to create collapsible sections
+local function createCollapsibleSection(title, parent)
+	local sectionFrame = Instance.new("Frame")
+	sectionFrame.Size = UDim2.new(1, 0, 0, 30)
+	sectionFrame.BackgroundTransparency = 1
+	sectionFrame.Parent = parent
+
+	-- Header button (click to expand/collapse)
+	local headerButton = Instance.new("TextButton")
+	headerButton.Size = UDim2.new(1, -10, 0, 30)
+	headerButton.Position = UDim2.new(0, 5, 0, 0)
+	headerButton.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+	headerButton.Text = ""
+	headerButton.Parent = sectionFrame
+
+	-- Arrow indicator (starts expanded)
+	local arrow = Instance.new("TextLabel")
+	arrow.Size = UDim2.new(0, 20, 1, 0)
+	arrow.Position = UDim2.new(0, 5, 0, 0)
+	arrow.BackgroundTransparency = 1
+	arrow.Text = "v"  -- Changed to expanded arrow
+	arrow.TextColor3 = Color3.fromRGB(200, 200, 200)
+	arrow.Font = Enum.Font.SourceSans
+	arrow.TextSize = 14
+	arrow.Parent = headerButton
+
+	-- Section title
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Size = UDim2.new(1, -30, 1, 0)
+	titleLabel.Position = UDim2.new(0, 25, 0, 0)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Text = title
+	titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.Font = Enum.Font.SourceSansBold
+	titleLabel.TextSize = 16
+	titleLabel.Parent = headerButton
+
+	-- Content frame (starts expanded)
+	local contentFrame = Instance.new("Frame")
+	contentFrame.Size = UDim2.new(1, -10, 0, 0)  -- Will be adjusted when setHeight is called
+	contentFrame.Position = UDim2.new(0, 5, 0, 35)
+	contentFrame.BackgroundColor3 = Color3.fromRGB(42, 42, 42)
+	contentFrame.BorderSizePixel = 0
+	contentFrame.ClipsDescendants = true
+	contentFrame.Parent = sectionFrame
+
+	-- Content list layout
+	local contentLayout = Instance.new("UIListLayout")
+	contentLayout.Padding = UDim.new(0, 5)
+	contentLayout.Parent = contentFrame
+
+	-- Padding for content
+	local padding = Instance.new("UIPadding")
+	padding.PaddingTop = UDim.new(0, 5)
+	padding.PaddingBottom = UDim.new(0, 5)
+	padding.PaddingLeft = UDim.new(0, 5)
+	padding.PaddingRight = UDim.new(0, 5)
+	padding.Parent = contentFrame
+
+	local isExpanded = true  -- Changed to true (starts expanded)
+	local contentHeight = 0
+
+	-- Toggle function
+	local function toggleSection()
+		isExpanded = not isExpanded
+
+		if isExpanded then
+			arrow.Text = "v"
+			contentFrame.Size = UDim2.new(1, -10, 0, contentHeight)
+			sectionFrame.Size = UDim2.new(1, 0, 0, 35 + contentHeight)
+
+			-- Update scrolling canvas size to accommodate expanded content
+			local newCanvasHeight = math.max(1200, 35 + contentHeight + 250)
+			scrollFrame.CanvasSize = UDim2.new(0, 0, 0, newCanvasHeight)
+		else
+			arrow.Text = ">"
+			contentFrame.Size = UDim2.new(1, -10, 0, 0)
+			sectionFrame.Size = UDim2.new(1, 0, 0, 30)
+		end
+	end
+
+	headerButton.MouseButton1Click:Connect(toggleSection)
+
+	-- Return section data
+	return {
+		frame = sectionFrame,
+		content = contentFrame,
+		setHeight = function(height)
+			contentHeight = height
+			if isExpanded then
+				contentFrame.Size = UDim2.new(1, -10, 0, contentHeight)
+				sectionFrame.Size = UDim2.new(1, 0, 0, 35 + contentHeight)
+
+				-- Update scrolling canvas size
+				local newCanvasHeight = math.max(1200, 35 + contentHeight + 250)
+				scrollFrame.CanvasSize = UDim2.new(0, 0, 0, newCanvasHeight)
+			end
+		end,
+		expand = function()
+			if not isExpanded then
+				toggleSection()
+			end
+		end,
+		collapse = function()
+			if isExpanded then
+				toggleSection()
+			end
+		end
+	}
+end
+
+-- =====================================================
+-- MAIN PLUGIN HEADER
+-- =====================================================
+
+-- Plugin title
+local titleLabel = createLabel("JapaTools - Development Tools", scrollFrame)
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextSize = 18
+titleLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
+
+createSeparator(scrollFrame)
+
+-- Plugin description
+local descLabel = createLabel("Gustavo Franco,AKA Japa, 2025", scrollFrame)
+descLabel.Font = Enum.Font.SourceSansItalic
+descLabel.TextSize = 14
+descLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+
+createSeparator(scrollFrame)
+
+-- =====================================================
+-- APPEARANCE COPIER SECTION
+-- =====================================================
+
+local appearanceSection = createCollapsibleSection("Appearance Copier", scrollFrame)
+
+-- Reference part variable
+local referencePart = nil
+
+-- Reference status label
+local referenceLabel = createLabel("Reference: None selected", appearanceSection.content)
+referenceLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+
+-- Button to set reference
+local setReferenceBtn = Instance.new("TextButton")
+setReferenceBtn.Size = UDim2.new(1, 0, 0, 30)
+setReferenceBtn.BackgroundColor3 = Color3.fromRGB(60, 120, 216)
+setReferenceBtn.Text = "Set Selection as Reference"
+setReferenceBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+setReferenceBtn.Font = Enum.Font.SourceSansBold
+setReferenceBtn.TextSize = 14
+setReferenceBtn.Parent = appearanceSection.content
+
+createSeparator(appearanceSection.content)
+
+-- Label for checkboxes
+createLabel("Properties to Copy:", appearanceSection.content)
+
+-- Checkbox system
+local checkboxes = {}
+
+-- Create checkbox function
+local function createCheckbox(name, displayName, parent, special)
+	local checkboxFrame = Instance.new("Frame")
+	checkboxFrame.Size = UDim2.new(1, 0, 0, 25)
+	checkboxFrame.BackgroundTransparency = 1
+	checkboxFrame.Parent = parent
+
+	local checkbox = Instance.new("TextButton")
+	checkbox.Size = UDim2.new(0, 20, 0, 20)
+	checkbox.Position = UDim2.new(0, 5, 0, 2)
+	checkbox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	checkbox.Text = ""
+	checkbox.Parent = checkboxFrame
+
+	local checkmark = Instance.new("TextLabel")
+	checkmark.Size = UDim2.new(1, 0, 1, 0)
+	checkmark.BackgroundTransparency = 1
+	checkmark.Text = "X"
+	checkmark.TextColor3 = Color3.fromRGB(100, 255, 100)
+	checkmark.Font = Enum.Font.SourceSansBold
+	checkmark.TextSize = 16
+	checkmark.Visible = false
+	checkmark.Parent = checkbox
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0, 120, 1, 0) -- Fixed width for label
+	label.Position = UDim2.new(0, 30, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = displayName
+	label.TextColor3 = Color3.fromRGB(226, 226, 226)
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Font = Enum.Font.SourceSans
+	label.TextSize = 14
+	label.Parent = checkboxFrame
+
+	-- Value display label (shows reference property values)
+	local valueLabel = Instance.new("TextLabel")
+	valueLabel.Size = UDim2.new(1, -155, 1, 0) -- Takes remaining space
+	valueLabel.Position = UDim2.new(0, 155, 0, 0)
+	valueLabel.BackgroundTransparency = 1
+	valueLabel.Text = ""
+	valueLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
+	valueLabel.TextXAlignment = Enum.TextXAlignment.Left
+	valueLabel.Font = Enum.Font.SourceSansItalic
+	valueLabel.TextSize = 12
+	valueLabel.Parent = checkboxFrame
+
+	-- Create unique key for special properties
+	local checkboxKey = name
+	if special then
+		checkboxKey = name .. "_" .. special
+	end
+
+	checkboxes[checkboxKey] = {
+		button = checkbox,
+		checkmark = checkmark,
+		enabled = false,
+		propertyName = name,
+		special = special,
+		valueLabel = valueLabel, -- Store reference to value label
+		displayName = displayName -- Store display name for reference
+	}
+
+	checkbox.MouseButton1Click:Connect(function()
+		checkboxes[checkboxKey].enabled = not checkboxes[checkboxKey].enabled
+		checkmark.Visible = checkboxes[checkboxKey].enabled
+	end)
+end
+
+-- Function to update property value displays
+local function updatePropertyDisplays()
+	if not referencePart then
+		-- Clear all value displays if no reference
+		for _, checkbox in pairs(checkboxes) do
+			if checkbox.valueLabel then
+				checkbox.valueLabel.Text = ""
+			end
+		end
+		return
+	end
+
+	-- Update all property displays
+	for checkboxKey, checkbox in pairs(checkboxes) do
+		if checkbox.valueLabel then
+			local success, value = pcall(function()
+				if checkbox.special == "Position" then
+					-- Handle PivotOffset Position
+					local pivot = referencePart.PivotOffset
+					return pivot.Position
+				elseif checkbox.special == "Orientation" then
+					-- Handle PivotOffset Orientation
+					local pivot = referencePart.PivotOffset
+					local x, y, z = pivot:ToEulerAnglesXYZ()
+					return Vector3.new(math.deg(x), math.deg(y), math.deg(z))
+				else
+					-- Handle normal properties
+					return referencePart[checkbox.propertyName]
+				end
+			end)
+
+			if success and value ~= nil then
+				local displayText = ""
+				local propName = checkbox.propertyName
+
+				-- Appearance Properties
+				if propName == "Color" then
+					-- Format Color as RGB values
+					local r = math.floor(value.R * 255 + 0.5)
+					local g = math.floor(value.G * 255 + 0.5)
+					local b = math.floor(value.B * 255 + 0.5)
+					displayText = string.format("%d, %d, %d", r, g, b)
+				elseif propName == "DoubleSided" or propName == "CanCollide" or propName == "Anchored" or propName == "Massless" then
+					-- Show boolean as checkmark or X
+					displayText = value and "✓" or "X"
+				elseif propName == "Material" then
+					-- Show material name
+					displayText = tostring(value):gsub("Enum%.Material%.", "")
+				elseif propName == "MaterialVariant" then
+					-- Show material variant (empty if none)
+					displayText = value ~= "" and tostring(value) or "None"
+				elseif propName == "RenderFidelity" then
+					-- Show render fidelity
+					displayText = tostring(value):gsub("Enum%.RenderFidelity%.", "")
+				elseif propName == "Reflectance" or propName == "Transparency" then
+					-- Show decimal values
+					displayText = string.format("%.2f", value)
+
+					-- Transform Properties
+				elseif propName == "Size" then
+					-- Format Size as X, Y, Z
+					displayText = string.format("%.2f, %.2f, %.2f", value.X, value.Y, value.Z)
+				elseif propName == "Position" then
+					-- Format Position as X, Y, Z
+					displayText = string.format("%.2f, %.2f, %.2f", value.X, value.Y, value.Z)
+				elseif propName == "Orientation" then
+					-- Format Orientation as X, Y, Z (in degrees)
+					local x, y, z = referencePart.CFrame:ToEulerAnglesXYZ()
+					displayText = string.format("%.1f°, %.1f°, %.1f°", math.deg(x), math.deg(y), math.deg(z))
+				elseif propName == "PivotOffset" then
+					if checkbox.special == "Position" then
+						-- Format Origin Position as X, Y, Z
+						displayText = string.format("%.2f, %.2f, %.2f", value.X, value.Y, value.Z)
+					elseif checkbox.special == "Orientation" then
+						-- Format Origin Orientation as X, Y, Z (in degrees)
+						displayText = string.format("%.1f°, %.1f°, %.1f°", value.X, value.Y, value.Z)
+					end
+				else
+					displayText = tostring(value)
+				end
+
+				checkbox.valueLabel.Text = displayText
+			else
+				checkbox.valueLabel.Text = "N/A"
+			end
+		end
+	end
+end
+
+local function createSeparatorWithLabel(text, parent)
+	local separatorFrame = Instance.new("Frame")
+	separatorFrame.Size = UDim2.new(1, 0, 0, 20)
+	separatorFrame.BackgroundTransparency = 1
+	separatorFrame.Parent = parent
+
+	local separatorLabel = Instance.new("TextLabel")
+	separatorLabel.Size = UDim2.new(1, 0, 1, 0)
+	separatorLabel.BackgroundTransparency = 1
+	separatorLabel.Text = text
+	separatorLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
+	separatorLabel.Font = Enum.Font.SourceSans
+	separatorLabel.TextSize = 11
+	separatorLabel.Parent = separatorFrame
+end
+
+-- Create "Select All" checkbox function
+local function createSelectAllCheckbox(name, displayName, parent, checkboxList)
+	local checkboxFrame = Instance.new("Frame")
+	checkboxFrame.Size = UDim2.new(1, 0, 0, 25)
+	checkboxFrame.BackgroundTransparency = 1
+	checkboxFrame.Parent = parent
+
+	local checkbox = Instance.new("TextButton")
+	checkbox.Size = UDim2.new(0, 20, 0, 20)
+	checkbox.Position = UDim2.new(0, 5, 0, 2)
+	checkbox.BackgroundColor3 = Color3.fromRGB(80, 80, 150) -- Different color for Select All
+	checkbox.Text = ""
+	checkbox.Parent = checkboxFrame
+
+	local checkmark = Instance.new("TextLabel")
+	checkmark.Size = UDim2.new(1, 0, 1, 0)
+	checkmark.BackgroundTransparency = 1
+	checkmark.Text = "✓"
+	checkmark.TextColor3 = Color3.fromRGB(100, 255, 100)
+	checkmark.Font = Enum.Font.SourceSansBold
+	checkmark.TextSize = 14
+	checkmark.Visible = false
+	checkmark.Parent = checkbox
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -30, 1, 0)
+	label.Position = UDim2.new(0, 30, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = displayName
+	label.TextColor3 = Color3.fromRGB(150, 200, 255) -- Different color for Select All text
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Font = Enum.Font.SourceSansBold
+	label.TextSize = 14
+	label.Parent = checkboxFrame
+
+	local selectAllState = false
+
+	checkbox.MouseButton1Click:Connect(function()
+		selectAllState = not selectAllState
+		checkmark.Visible = selectAllState
+
+		-- Toggle all checkboxes in the provided list
+		for _, checkboxKey in ipairs(checkboxList) do
+			if checkboxes[checkboxKey] then
+				checkboxes[checkboxKey].enabled = selectAllState
+				checkboxes[checkboxKey].checkmark.Visible = selectAllState
+			end
+		end
+	end)
+
+	return checkbox
+end
+
+-- NEW: Name Input Field
+createSeparatorWithLabel("---------- Name ----------", appearanceSection.content)
+
+local nameInputFrame = Instance.new("Frame")
+nameInputFrame.Size = UDim2.new(1, 0, 0, 30)
+nameInputFrame.BackgroundTransparency = 1
+nameInputFrame.Parent = appearanceSection.content
+
+local nameLabel = Instance.new("TextLabel")
+nameLabel.Size = UDim2.new(0, 80, 1, 0)
+nameLabel.Position = UDim2.new(0, 5, 0, 0)
+nameLabel.BackgroundTransparency = 1
+nameLabel.Text = "Custom Name:"
+nameLabel.TextColor3 = Color3.fromRGB(226, 226, 226)
+nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+nameLabel.Font = Enum.Font.SourceSans
+nameLabel.TextSize = 14
+nameLabel.Parent = nameInputFrame
+
+local nameTextBox = Instance.new("TextBox")
+nameTextBox.Size = UDim2.new(1, -95, 0, 25)
+nameTextBox.Position = UDim2.new(0, 90, 0, 2)
+nameTextBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+nameTextBox.BorderSizePixel = 0
+nameTextBox.Text = ""
+nameTextBox.PlaceholderText = "Leave empty to keep original name"
+nameTextBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+nameTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+nameTextBox.Font = Enum.Font.SourceSans
+nameTextBox.TextSize = 14
+nameTextBox.ClearTextOnFocus = false
+nameTextBox.Parent = nameInputFrame
+
+-- Appearance Separator
+createSeparatorWithLabel("---------- Appearance ----------", appearanceSection.content)
+
+-- Appearance Properties - Select All checkbox
+local appearanceCheckboxList = {"Color", "DoubleSided", "Material", "MaterialVariant", "Reflectance", "RenderFidelity", "Transparency"}
+createSelectAllCheckbox("SelectAllAppearance", "Select All Appearance", appearanceSection.content, appearanceCheckboxList)
+
+-- Appearance Properties
+createCheckbox("Color", "Color", appearanceSection.content)
+createCheckbox("DoubleSided", "DoubleSided", appearanceSection.content)
+createCheckbox("Material", "Material", appearanceSection.content)
+createCheckbox("MaterialVariant", "MaterialVariant", appearanceSection.content)
+createCheckbox("Reflectance", "Reflectance", appearanceSection.content)
+createCheckbox("RenderFidelity", "RenderFidelity", appearanceSection.content)
+createCheckbox("Transparency", "Transparency", appearanceSection.content)
+
+-- Transform Separator
+createSeparatorWithLabel("---------- Transform ----------", appearanceSection.content)
+
+-- Transform Properties - Select All checkbox
+local transformCheckboxList = {"Size", "Position", "Orientation", "PivotOffset_Position", "PivotOffset_Orientation"}
+createSelectAllCheckbox("SelectAllTransform", "Select All Transform", appearanceSection.content, transformCheckboxList)
+
+-- Transform Properties
+createCheckbox("Size", "Size", appearanceSection.content)
+createCheckbox("Position", "Position", appearanceSection.content)
+createCheckbox("Orientation", "Orientation", appearanceSection.content)
+createCheckbox("PivotOffset", "Origin Position", appearanceSection.content, "Position")
+createCheckbox("PivotOffset", "Origin Orientation", appearanceSection.content, "Orientation")
+
+-- Collision & Part Separator
+createSeparatorWithLabel("---------- Collision & Part ----------", appearanceSection.content)
+
+-- Collision and Part Properties - Select All checkbox (updated to include Massless)
+local collisionCheckboxList = {"CanCollide", "Anchored", "Massless"}
+createSelectAllCheckbox("SelectAllCollision", "Select All Collision & Part", appearanceSection.content, collisionCheckboxList)
+
+-- Collision and Part Properties
+createCheckbox("CanCollide", "CanCollide", appearanceSection.content)
+createCheckbox("Anchored", "Anchored", appearanceSection.content)
+createCheckbox("Massless", "Massless", appearanceSection.content) -- NEW: Added Massless
+
+-- NEW: Dependencies Section
+createSeparatorWithLabel("---------- Dependencies ----------", appearanceSection.content)
+
+-- Dependencies checkbox
+local copyDependenciesFrame = Instance.new("Frame")
+copyDependenciesFrame.Size = UDim2.new(1, 0, 0, 25)
+copyDependenciesFrame.BackgroundTransparency = 1
+copyDependenciesFrame.Parent = appearanceSection.content
+
+local copyDependenciesCheckbox = Instance.new("TextButton")
+copyDependenciesCheckbox.Size = UDim2.new(0, 20, 0, 20)
+copyDependenciesCheckbox.Position = UDim2.new(0, 5, 0, 2)
+copyDependenciesCheckbox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+copyDependenciesCheckbox.Text = ""
+copyDependenciesCheckbox.Parent = copyDependenciesFrame
+
+local copyDependenciesCheckmark = Instance.new("TextLabel")
+copyDependenciesCheckmark.Size = UDim2.new(1, 0, 1, 0)
+copyDependenciesCheckmark.BackgroundTransparency = 1
+copyDependenciesCheckmark.Text = "X"
+copyDependenciesCheckmark.TextColor3 = Color3.fromRGB(100, 255, 100)
+copyDependenciesCheckmark.Font = Enum.Font.SourceSansBold
+copyDependenciesCheckmark.TextSize = 16
+copyDependenciesCheckmark.Visible = false
+copyDependenciesCheckmark.Parent = copyDependenciesCheckbox
+
+local copyDependenciesLabel = Instance.new("TextLabel")
+copyDependenciesLabel.Size = UDim2.new(1, -30, 1, 0)
+copyDependenciesLabel.Position = UDim2.new(0, 30, 0, 0)
+copyDependenciesLabel.BackgroundTransparency = 1
+copyDependenciesLabel.Text = "Copy Children (SurfaceAppearance, Textures, etc.)"
+copyDependenciesLabel.TextColor3 = Color3.fromRGB(226, 226, 226)
+copyDependenciesLabel.TextXAlignment = Enum.TextXAlignment.Left
+copyDependenciesLabel.Font = Enum.Font.SourceSans
+copyDependenciesLabel.TextSize = 14
+copyDependenciesLabel.Parent = copyDependenciesFrame
+
+local copyDependenciesEnabled = false
+
+copyDependenciesCheckbox.MouseButton1Click:Connect(function()
+	copyDependenciesEnabled = not copyDependenciesEnabled
+	copyDependenciesCheckmark.Visible = copyDependenciesEnabled
+end)
+
+-- Dependencies info label
+local dependenciesInfoLabel = createLabel("", appearanceSection.content)
+dependenciesInfoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+dependenciesInfoLabel.Font = Enum.Font.SourceSansItalic
+dependenciesInfoLabel.TextSize = 12
+
+createSeparator(appearanceSection.content)
+
+-- Apply button
+local applyBtn = Instance.new("TextButton")
+applyBtn.Size = UDim2.new(1, 0, 0, 30)
+applyBtn.BackgroundColor3 = Color3.fromRGB(76, 175, 80)
+applyBtn.Text = "Apply to Selected Parts"
+applyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+applyBtn.Font = Enum.Font.SourceSansBold
+applyBtn.TextSize = 14
+applyBtn.Parent = appearanceSection.content
+
+-- Clear button
+local clearBtn = Instance.new("TextButton")
+clearBtn.Size = UDim2.new(1, 0, 0, 30)
+clearBtn.BackgroundColor3 = Color3.fromRGB(244, 67, 54)
+clearBtn.Text = "Clear Reference"
+clearBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+clearBtn.Font = Enum.Font.SourceSansBold
+clearBtn.TextSize = 14
+clearBtn.Parent = appearanceSection.content
+
+-- Feedback label
+local feedbackLabel = createLabel("", appearanceSection.content)
+feedbackLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+feedbackLabel.Font = Enum.Font.SourceSansItalic
+
+-- Set section height and auto-expand
+appearanceSection.setHeight(880)
+appearanceSection.expand()  -- Auto-expand on startup
+
+-- =====================================================
+-- PLACEHOLDER FOR FUTURE SECTIONS
+-- =====================================================
+
+createSeparator(scrollFrame)
+
+-- Example of another collapsible section (placeholder)
+local futureSection = createCollapsibleSection("Future Tools (Coming Soon)", scrollFrame)
+
+-- Updated message as requested
+local placeholderLabel = createLabel("I hope the plugin is being useful and optimizing your production time.", futureSection.content)
+placeholderLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+
+local contactLabel = createLabel("If you find any bugs, have feedback, or suggestions for new features,", futureSection.content)
+contactLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+
+local discordLabel = createLabel('please send me a message on Discord: "jaapa1"', futureSection.content)
+discordLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
+
+futureSection.setHeight(100)
+futureSection.expand()  -- Auto-expand on startup
+
+-- =====================================================
+-- APPEARANCE COPIER LOGIC
+-- =====================================================
+
+local function isValidPart(obj)
+	return obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("Part")
+end
+
+-- NEW: Function to update dependencies info
+local function updateDependenciesInfo()
+	if not referencePart then
+		dependenciesInfoLabel.Text = ""
+		return
+	end
+
+	local dependencies = {}
+	for _, child in ipairs(referencePart:GetChildren()) do
+		if child:IsA("SurfaceAppearance") or child:IsA("Texture") or child:IsA("Decal") or 
+			child:IsA("PointLight") or child:IsA("SpotLight") or child:IsA("SurfaceLight") then
+			table.insert(dependencies, child.ClassName)
+		end
+	end
+
+	if #dependencies > 0 then
+		dependenciesInfoLabel.Text = "Found: " .. table.concat(dependencies, ", ")
+		dependenciesInfoLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
+	else
+		dependenciesInfoLabel.Text = "No dependencies found"
+		dependenciesInfoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+	end
+end
+
+local function setReferencePart()
+	local selection = Selection:Get()
+
+	if #selection == 0 then
+		feedbackLabel.Text = "Warning: No part selected"
+		feedbackLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+		return
+	end
+
+	for _, obj in ipairs(selection) do
+		if isValidPart(obj) then
+			referencePart = obj
+			referenceLabel.Text = "Reference: " .. obj.Name
+			referenceLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+			feedbackLabel.Text = "Reference set successfully!"
+			feedbackLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+
+			-- Update property value displays
+			updatePropertyDisplays()
+			-- NEW: Update dependencies info
+			updateDependenciesInfo()
+			return
+		end
+	end
+
+	feedbackLabel.Text = "Warning: No valid part selected"
+	feedbackLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+end
+
+-- NEW: Function to copy dependencies
+local function copyDependencies(sourcePart, targetPart)
+	-- Clear existing dependencies of the same type
+	for _, child in ipairs(targetPart:GetChildren()) do
+		if child:IsA("SurfaceAppearance") or child:IsA("Texture") or child:IsA("Decal") or
+			child:IsA("PointLight") or child:IsA("SpotLight") or child:IsA("SurfaceLight") then
+			child:Destroy()
+		end
+	end
+
+	-- Copy all dependencies from source
+	for _, child in ipairs(sourcePart:GetChildren()) do
+		if child:IsA("SurfaceAppearance") or child:IsA("Texture") or child:IsA("Decal") or
+			child:IsA("PointLight") or child:IsA("SpotLight") or child:IsA("SurfaceLight") then
+			local clone = child:Clone()
+			clone.Parent = targetPart
+		end
+	end
+end
+
+local function copyProperties()
+	if not referencePart then
+		feedbackLabel.Text = "Error: Set a reference part first"
+		feedbackLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+		return
+	end
+
+	local selection = Selection:Get()
+	if #selection == 0 then
+		feedbackLabel.Text = "Error: Select target parts"
+		feedbackLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+		return
+	end
+
+	-- Check if any property is selected (excluding custom name and dependencies)
+	local hasSelectedProperty = false
+	for _, checkbox in pairs(checkboxes) do
+		if checkbox.enabled then
+			hasSelectedProperty = true
+			break
+		end
+	end
+
+	-- Check if at least something will be modified
+	local customName = nameTextBox.Text
+	if not hasSelectedProperty and customName == "" and not copyDependenciesEnabled then
+		feedbackLabel.Text = "Error: Select at least one property or action"
+		feedbackLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+		return
+	end
+
+	ChangeHistoryService:SetWaypoint("Before copying properties")
+
+	local copiedCount = 0
+	local errorCount = 0
+
+	for _, obj in ipairs(selection) do
+		if isValidPart(obj) and obj ~= referencePart then
+			local success = true
+
+			-- NEW: Apply custom name if provided
+			if customName ~= "" then
+				local ok = pcall(function()
+					obj.Name = customName
+				end)
+				if not ok then
+					errorCount = errorCount + 1
+					success = false
+				end
+			end
+
+			-- Copy selected properties
+			for propKey, checkbox in pairs(checkboxes) do
+				if checkbox.enabled then
+					local ok = pcall(function()
+						if checkbox.special == "Position" then
+							-- Handle PivotOffset Position
+							local currentPivot = referencePart.PivotOffset
+							local currentRotation = obj.PivotOffset
+							obj.PivotOffset = CFrame.new(currentPivot.Position) * CFrame.Angles(currentRotation:ToEulerAnglesXYZ())
+						elseif checkbox.special == "Orientation" then
+							-- Handle PivotOffset Orientation
+							local currentPivot = referencePart.PivotOffset
+							local currentPosition = obj.PivotOffset.Position
+							obj.PivotOffset = CFrame.new(currentPosition) * (currentPivot - currentPivot.Position)
+						elseif checkbox.propertyName == "Color" then
+							-- Handle Color with exact RGB values, avoiding BrickColor conversion
+							local referenceColor = referencePart.Color
+							obj.BrickColor = BrickColor.new("Medium stone grey") -- Set to neutral color first
+							obj.Color = Color3.new(referenceColor.R, referenceColor.G, referenceColor.B) -- Force exact RGB
+						else
+							-- Handle normal properties (including Massless)
+							obj[checkbox.propertyName] = referencePart[checkbox.propertyName]
+						end
+					end)
+
+					if not ok then
+						success = false
+						errorCount = errorCount + 1
+					end
+				end
+			end
+
+			-- NEW: Copy dependencies if enabled
+			if copyDependenciesEnabled then
+				local ok = pcall(function()
+					copyDependencies(referencePart, obj)
+				end)
+				if not ok then
+					success = false
+					errorCount = errorCount + 1
+				end
+			end
+
+			if success then
+				copiedCount = copiedCount + 1
+			end
+		end
+	end
+
+	ChangeHistoryService:SetWaypoint("After copying properties")
+
+	if copiedCount > 0 then
+		feedbackLabel.Text = string.format("Success: Properties copied to %d part(s)", copiedCount)
+		feedbackLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+	else
+		feedbackLabel.Text = "Error: No parts were modified"
+		feedbackLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+	end
+
+	if errorCount > 0 then
+		feedbackLabel.Text = feedbackLabel.Text .. string.format(" (Warning: %d error(s))", errorCount)
+	end
+end
+
+local function clearReference()
+	referencePart = nil
+	referenceLabel.Text = "Reference: None selected"
+	referenceLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+	feedbackLabel.Text = "Reference cleared"
+	feedbackLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	dependenciesInfoLabel.Text = "" -- NEW: Clear dependencies info
+
+	-- Clear property value displays
+	updatePropertyDisplays()
+
+	-- NEW: Clear name field
+	nameTextBox.Text = ""
+end
+
+-- =====================================================
+-- EVENT CONNECTIONS
+-- =====================================================
+
+setReferenceBtn.MouseButton1Click:Connect(setReferencePart)
+applyBtn.MouseButton1Click:Connect(copyProperties)
+clearBtn.MouseButton1Click:Connect(clearReference)
+
+button.Click:Connect(function()
+	widget.Enabled = not widget.Enabled
+end)
+
+game.DescendantRemoving:Connect(function(descendant)
+	if descendant == referencePart then
+		clearReference()
+		feedbackLabel.Text = "Warning: Reference part was deleted"
+		feedbackLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+	end
+end)
+
+-- =====================================================
+-- INITIALIZATION
+-- =====================================================
+
+print("====================================")
+print("JapaTools loaded successfully!")
+print("Version: 0.1.0")
+print("====================================")
+print("Available features:")
+print("• Name Editor - Apply custom names to multiple parts")
+print("• Appearance Copier - Copy visual properties between parts")
+print("• Transform Copier - Copy size, position and orientation")
+print("• Collision/Part Copier - Copy physics properties (including Massless)")
+print("• Dependencies Copier - Copy SurfaceAppearance, Textures and more")
+print("• More tools coming soon...")
+print("====================================")]]></ProtectedString>
+			<int64 name="SourceAssetId">-1</int64>
+			<BinaryString name="Tags"></BinaryString>
+		</Properties>
+	</Item>
+</roblox>
