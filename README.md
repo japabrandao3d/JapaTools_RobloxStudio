@@ -4,7 +4,7 @@
 
 In version `0.1.0`, the core feature is **Appearance Copier** — set a reference Part, choose what to copy, and batch-apply it to selected Parts. Great for standardizing materials, colors, physics, and pivots without opening Properties a hundred times.
 
-**Version:** `0.1.0` · **File:** `JapaTools_0.1.0.rbxmx` · **Toolbar:** `JapaTools`
+**Version:** `0.1.0` · **Toolbar:** `JapaTools` · **Store:** [Install in Studio](https://create.roblox.com/store/asset/119706684746868/JapaTools)
 
 ---
 
@@ -20,6 +20,12 @@ In version `0.1.0`, the core feature is **Appearance Copier** — set a referenc
 
 ## Installation
 
+### Recommended — Creator Store
+1. Open the plugin page: **[JapaTools on Creator Store](https://create.roblox.com/store/asset/119706684746868/JapaTools)**
+2. Click **Get** / **Install** to add it directly in Roblox Studio.
+3. In the toolbar, click **JapaTools** to open the floating panel.
+
+### Alternative — manual `.rbxmx`
 1. Download `JapaTools_0.1.0.rbxmx` from this repository.
 2. In Roblox Studio, go to **Plugins → Plugins Folder** (or drop the `.rbxmx` into your plugins folder).
 3. Restart Studio (or reload plugins).
